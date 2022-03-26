@@ -1,7 +1,6 @@
-[package]
-name = "rust-lnsocket"
-version = "0.0.1"
-edition = "2021"
+[workspace]
 
-[dependencies]
-libc = "0.2.0"
+members = [
+    "core",
+    "cmd",
+]
