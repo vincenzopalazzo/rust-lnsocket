@@ -4,4 +4,5 @@
 /// author: https://github.com/vincenzopalazzo
 #[allow(warnings)]
 mod bindings;
+pub mod client;
 pub mod core;
