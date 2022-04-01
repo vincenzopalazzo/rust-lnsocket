@@ -2,7 +2,7 @@
 ///
 /// author: https://github.com/vincenzopalazzo
 use crate::lnsocket::bindings::*;
-use crate::lnsocket::client::{LNSocketClient, Request};
+use crate::lnsocket::client::{ClientMessage, LNSocketClient};
 use std::ffi::CString;
 use std::io::Error;
 
@@ -29,7 +29,7 @@ impl LNSocket {
         self.internal_initialization()
     }
 
-    pub fn send_msg(&mut self, request: &Request) -> Result<(), Error> {
+    pub fn send_msg(&mut self, request: Box<dyn ClientMessage>) -> Result<(), Error> {
         let msg = self.client.build_req(request);
         let mut buff = String::new();
         match msg {
