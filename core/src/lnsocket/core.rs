@@ -1,8 +1,10 @@
+use crate::commando::CommandoResponse;
 /// Public API of LNSocket
 ///
 /// author: https://github.com/vincenzopalazzo
 use crate::lnsocket::bindings::*;
 use crate::lnsocket::client::{ClientMessage, LNSocketClient};
+use libc::PT_NULL;
 use std::ffi::CString;
 use std::io::Error;
 
@@ -64,5 +66,54 @@ impl LNSocket {
             lnsocket_connect(&mut self.ln_socket, nodeid, node_host)
         };
         result == 0
+    }
+
+    fn sync_wait_response(&mut self) -> Result<Box<dyn ClientMessage>, Error> {
+        let mut response = Box::new(CommandoResponse {});
+        loop {
+            let str_resp = unsafe {
+                let socket = 1;
+                let set = ::std::ptr::null::<fd_set>() as *mut fd_set;
+                let mut timeout = timeval {
+                    tv_sec: 0,
+                    tv_usec: 0,
+                };
+                let rv = select(
+                    socket + 1,
+                    set,
+                    ::std::ptr::null::<fd_set>() as *mut fd_set,
+                    ::std::ptr::null::<fd_set>() as *mut fd_set,
+                    &mut timeout,
+                );
+
+                match rv {
+                    0 => todo!(),
+                    1 => todo!(),
+                    _ => {
+                        let mut msgtype: ushort = 0;
+                        let c_buff = CString::new("").unwrap();
+                        let mut cbuff = c_buff.as_ptr() as *mut u_char;
+                        let mut len = 0;
+                        let ok =
+                            lnsocket_recv(&mut self.ln_socket, &mut msgtype, &mut cbuff, &mut len);
+                        if ok != 0 {
+                            todo!()
+                        }
+
+                        loop {
+                            match msgtype {
+                                // TODO: we need to append the response here!
+                                COMMANDO_REPLY_TERM => todo!(),
+
+                                COMMANDO_REPLY_CONTINUES => continue,
+                            };
+                        }
+                    }
+                }
+
+                ""
+            };
+            return Ok(response);
+        }
     }
 }
