@@ -1,0 +1,3 @@
+[submodule "core/include/lnsocket"]
+	path = core/include/lnsocket
+	url = https://github.com/jb55/lnsocket.git
