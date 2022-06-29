@@ -6,3 +6,5 @@ Cargo.lock
 target/
 
 include/lnsocket/
+
+.vscode/

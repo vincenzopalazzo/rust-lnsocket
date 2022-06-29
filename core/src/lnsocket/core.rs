@@ -4,7 +4,6 @@ use crate::commando::CommandoResponse;
 /// author: https://github.com/vincenzopalazzo
 use crate::lnsocket::bindings::*;
 use crate::lnsocket::client::{ClientMessage, LNSocketClient};
-use libc::PT_NULL;
 use std::ffi::CString;
 use std::io::Error;
 
@@ -16,9 +15,12 @@ pub struct LNSocket {
 impl LNSocket {
     /// Create a new instance on LNSocket
     pub fn new(client: Box<dyn LNSocketClient>) -> Self {
-        let socket = unsafe { lnsocket_create() };
+        let socket = unsafe {
+            let socket = lnsocket_create();
+            *socket
+        };
         return LNSocket {
-            ln_socket: unsafe { *socket },
+            ln_socket: socket,
             client,
         };
     }
@@ -31,20 +33,22 @@ impl LNSocket {
         self.internal_initialization()
     }
 
-    pub fn send_msg(&mut self, request: Box<dyn ClientMessage>) -> Result<(), Error> {
+    pub fn send_msg(&mut self, request: Box<dyn ClientMessage>) -> Result<(), String> {
         let msg = self.client.build_req(request);
         let mut buff = String::new();
         match msg {
             Ok(buffer) => buff = buffer,
-            Err(err) => return Err(err),
+            Err(err) => return Err(err.to_string()),
         };
         let c_msg = CString::new(buff.as_bytes()).unwrap();
         let result = unsafe {
             let cmsg = c_msg.as_bytes().as_ptr();
             lnsocket_write(&mut self.ln_socket, cmsg, buff.len() as u16)
         };
-        // TODO check this and return an error if necessary
-        assert_eq!(result, 0);
+
+        if result == 0 {
+            return Err("failing during send message".to_owned());
+        }
         Ok(())
     }
 
@@ -53,19 +57,16 @@ impl LNSocket {
     /// https://github.com/lightning/bolts/blob/master/01-messaging.md#the-init-message
     fn internal_initialization(&mut self) -> bool {
         let result = unsafe { lnsocket_perform_init(&mut self.ln_socket) };
-        result == 0
+        result > 0
     }
 
     /// perform the internal connect
     fn internal_connect(&mut self, node_id: &str, host: &str) -> bool {
         let c_node_id = CString::new(node_id).unwrap();
         let c_host = CString::new(host).unwrap();
-        let result = unsafe {
-            let nodeid = c_node_id.as_ptr();
-            let node_host = c_host.as_ptr();
-            lnsocket_connect(&mut self.ln_socket, nodeid, node_host)
-        };
-        result == 0
+        let result =
+            unsafe { lnsocket_connect(&mut self.ln_socket, c_node_id.as_ptr(), c_host.as_ptr()) };
+        result > 0
     }
 
     fn sync_wait_response(&mut self) -> Result<Box<dyn ClientMessage>, Error> {
@@ -115,5 +116,36 @@ impl LNSocket {
             };
             return Ok(response);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::commando::{CommandoClient, CommandoRequest};
+
+    #[test]
+    fn try_to_connect() {
+        let node_id = "03b39d1ddf13ce486de74e9e44e0538f960401a9ec75534ba9cfe4100d65426880";
+        let host = "127.0.0.1:19735";
+        let mut socket = LNSocket::new(Box::new(CommandoClient {}));
+        assert!(socket.connect(&node_id, &host));
+    }
+
+    #[test]
+    fn try_to_send_msg() {
+        let node_id = "03b39d1ddf13ce486de74e9e44e0538f960401a9ec75534ba9cfe4100d65426880";
+        let host = "127.0.0.1";
+        let rune = "DZtS6dHZKbjTDyN4YMFnw-6Rmo5uGGmznqaSgA3nZQ89MSZtZXRob2RebGlzdHxtZXRob2ReZ2V0fG1ldGhvZD1zdW1tYXJ5Jm1ldGhvZC9nZXRzaGFyZWRzZWNyZXQmbWV0aG9kL2xpc3RkYXRhc3RvcmU=";
+        let mut socket = LNSocket::new(Box::new(CommandoClient {}));
+        assert!(socket.connect(&node_id, &host));
+        let _ = match socket.send_msg(Box::new(CommandoRequest::new(
+            Some(rune.to_owned()),
+            "getinfo".to_owned(),
+            vec![],
+        ))) {
+            Ok(_) => {}
+            Err(err) => panic!("{}", err),
+        };
     }
 }

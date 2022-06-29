@@ -14,6 +14,17 @@ pub struct CommandoRequest {
     params: Vec<String>,
 }
 
+impl CommandoRequest {
+    pub fn new(rune: Option<String>, method: String, params: Vec<String>) -> Self {
+        CommandoRequest {
+            id: 1,
+            rune: rune,
+            method: method,
+            params: params,
+        }
+    }
+}
+
 impl ClientMessage for CommandoRequest {
     fn encode(&self) -> Result<String, Error> {
         match serde_json::to_string(self) {
@@ -33,14 +44,14 @@ impl ClientMessage for CommandoRequest {
 
 // TODO: implementing it with the response information
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CommandoResponse {}
+pub struct CommandoResponse;
 
 impl ClientMessage for CommandoResponse {
     fn encode(&self) -> Result<String, Error> {
         todo!()
     }
 
-    fn decode(&self, buffer: &str) -> Result<Box<(dyn ClientMessage + 'static)>, Error> {
+    fn decode(&self, _buffer: &str) -> Result<Box<(dyn ClientMessage + 'static)>, Error> {
         todo!()
     }
 }
